@@ -1,65 +1,22 @@
 <template>
 <div class="row">
     <div class="col-lg-3">
-        <h5> Game Status : <span class="badge badge-secondary">{{start ? 'On' : 'Hold'}}</span></h5>
-        <ul>
-            <li v-for="(item, index) in historyMoves" :key="index">
-                <div class="media">
-                    <div class="media-body">
-                        <strong class="mr-auto">Move : {{item.moveCnt}} Color : {{item.player == 1 ?  'Black' : 'White' }}</strong>
-                        <ol>
-                            <li>
-                                x is : {{String.fromCharCode(item.x1+65)}} 
-                                y is : {{String.fromCharCode(item.y1+65)}}
-                            </li>
-                            <li v-show="item.x2 != -1">
-                                x is : {{String.fromCharCode(item.x2+65)}} 
-                                y is : {{String.fromCharCode(item.y2+65)}}
-                            </li>
-                        </ol>
-                    </div>
-                </div>
-            </li>
-        </ul>
+        <SixInRowBodyLeftBar v-bind:start="start" 
+                            v-on:start-game="startGame" 
+                            v-on:reset-game="resetGame"/>
     </div>
     <div class="col-lg-6">
         <div class="row">
             <div class="col-lg-12">
-                <canvas ref="canvas" class="chessboard" id="chessboard" @click="chessboardClick">
-                </canvas>
+                <h5> 持方颜色 : <span class="badge badge-secondary">{{player == config.PLAYER.BLACK ? '黑色' : '白色'}}</span></h5>
             </div>
         </div>
-        <div class="row" style="margin-top: 10px;">
-            <div class="col-lg-5">
-                <div class="input-group">
-                    <div class="input-group-prepend">
-                        <label class="input-group-text" for="inputGroupSelect01">Mode</label>
-                    </div>
-                    <select class="custom-select" v-model="mode">
-                        <option value="0">人人对战</option>
-                        <option value="1">人机对战</option>
-                        <option value="2">机机对战</option>
-                    </select>
-                </div>
-            </div>
-            <div class="col-lg-5">
-                <div class="input-group">
-                    <div class="input-group-prepend">
-                        <label class="input-group-text" for="inputGroupSelect01">Player Side</label>
-                    </div>
-                    <select class="custom-select" v-model="currentPlayer" v-bind:disabled="start">
-                        <option value="1">Black</option>
-                        <option value="2">White</option>
-                    </select>
-                </div>
-            </div>
-            <div class="col-lg-1 ">
-                <button type="button" class="btn btn-primary"  @click="resetGame">Reset</button>
-            </div>
-            <div class="col-lg-1 ">
-                <button type="button" class="btn btn-primary"  @click="startGame">Start</button>
-            </div>
-        </div>
+        <SixInRowBodyBoard ref="board" v-bind:chessboard="chessboard" 
+                            v-bind:player="player" 
+                            v-bind:start="start"
+                            v-bind:timestamp="timestamp"
+                            v-on:set-stone="setStone">
+        </SixInRowBodyBoard>
     </div>
 </div>
 
@@ -67,98 +24,130 @@
 
 <script>
 import conf from "@/constant/SixInRowConsants.js"
+import SixInRowBodyBoard from "@/components/SixInRowBodyBoard.vue"
+import SixInRowBodyLeftBar from "@/components/SixInRowBodyLeftBar.vue"
+import Action from "@/model/Action"
 
 export default {
     name: "SixInRowBody",
+    components:{
+        SixInRowBodyBoard,
+        SixInRowBodyLeftBar
+    },
     data: function(){
         return{
-            historyMoves : [],
+            historyActions : [],
             chessboard : [],
-            gridSize: 0,
             stoneCnt: 0,
-            timestamp: 0,
-            currentPlayer: conf.PLAYER.BLACK,
-            plyaerOptions:[
-                {
-                    value: conf.PLAYER.BLACK,
-                    name: 'Black',
-                },
-                {
-                    alue: conf.PLAYER.WHITE,
-                    name: 'White',
-                }
-            ],
+            timestamp:1,
             start: false,
+            player: conf.PLAYER.BLACK,
             mode: conf.MODE.HUMAN_TO_HUMAN,
-            modeOpions:[
-                {
-                    value:conf.MODE.HUMAN_TO_HUMAN,
-                    name: '人人对战',
-                },
-                 {
-                    value:conf.MODE.HUMAN_TO_AI,
-                    name: '人机对战',
-                },
-                 {
-                    value:conf.MODE.AI_TO_AI,
-                    name: '智能对智能',
-                }
-            ]
+            action : new Action(),
+            move: {
+                x1:-1,
+                y1:-1,
+                x2:-1,
+                y2:-1,
+            },
+            config: conf
         }
     },
     mounted: function(){
         this.initPage()
     },
     methods:{
+        setStone: function(x, y, player){
+            if(this.chessboard[x][y] == conf.PLAYER.EMPTY){
+                this.chessboard[x][y] = player
+                this.stoneCnt = (this.stoneCnt + 1) % 2
+                // 第一步时黑棋只走一个子
+                if(this.timestamp == 1){
+                    this.historyActions.push(new Action(this.player, x, y, -1, -1))
+                    this.stoneCnt = 0
+                    this.player = conf.PLAYER.WHITE
+                    this.timestamp++
+                    
+                } else {
+                    // == 0 说明当前玩家已经走了两个子，该换边了
+                    if(this.stoneCnt == 0){
+                        this.historyActions.push(new Action(this.player, this.move.x1, this.move.y1,
+                                                x, y))
+                        this.changePlayer()
+                        this.timestamp++
+                        console.log(this.historyActions)
+                    } else {
+                        this.move.x1 = x
+                        this.move.y1 = y
+                    }
+                }
+            }
+        },
+        requestNextActon: function(){
+            var that = this
+            actionDto =  axios.post('http://127.0.0.1:8080//sixinrow/getnextmove', {
+                    requiredPlayer: this.requiredPlayer,
+                    actionDTO: {
+                        "player": this.currentPlayer,
+                        "x1": this.action.x1,
+                        "y1": this.action.y1,
+                        "x2": this.action.x2,
+                        "y2": this.action.y2,
+                    },
+                    gameStateDTO: {
+                        chessboard: this.chessboard,
+                        timestamp: this.timestamp,
+                        terminal: this.terminal,
+                    }
+
+                  })
+                  .then(function (response) {
+                    actionDTO = response.data.actionDTO
+                    console.log(response);
+                    that.setStone(actionDTO.x1, actionDTO.y1, that.requiredPlayer)
+                    that.setStone(actionDTO.x2, actionDTO.y2, that.requiredPlayer)
+                  })
+                  .catch(function (error) {
+                    console.log(error);
+                  });
+        },
         initPage: function(){
-            this.myCanvas = this.$refs.canvas
-            this.myCanvas.width = conf.BOARD_PIXEL_SIZE
-            this.myCanvas.height = conf.BOARD_PIXEL_SIZE
-            this.myCanvasContenxt = this.myCanvas.getContext("2d")
             for (let i = 0; i < conf.BOARD_SIZE; i++) {
                 this.chessboard[i] = []
             }
-            this.gridSize = conf.BOARD_PIXEL_SIZE / conf.BOARD_SIZE
             this.resetGame()
         },
         resetGame: function(){
-            this.myCanvasContenxt.clearRect(0, 0, conf.BOARD_PIXEL_SIZE, conf.BOARD_PIXEL_SIZE);
             for (let i = 0; i < conf.BOARD_SIZE; i++) {
                 for (let j = 0; j < conf.BOARD_SIZE; j++) {
-                   this.chessboard[i][j] = conf.EMPTY
+                   this.chessboard[i][j] = conf.PLAYER.EMPTY
                 }
             }
-            this.currentPlayer = conf.PLAYER.BLACK
+            this.player = conf.PLAYER.BLACK
             this.mode = conf.MODE.HUMAN_TO_HUMAN
             this.stoneCnt = 0
-            this.timestamp = 0
-            this.historyMoves = []
+            this.timestamp = 1
+            this.historyActions = []
             this.start = false
-            this.drawChessboard()
-            
+            this.$refs.board.resetGame();
         },
-        drawChessboard : function(){
-            const { myCanvasContenxt } = this
-            myCanvasContenxt.strokeStyle = '#bfbfbf'
-            let begin = this.gridSize / 2;
-            let end = conf.BOARD_PIXEL_SIZE - begin
-            for (let i = 0; i < conf.BOARD_SIZE; i++) {
-                myCanvasContenxt.moveTo(begin + i * this.gridSize, begin)
-                myCanvasContenxt.lineTo(begin + i * this.gridSize, end)
-                myCanvasContenxt.stroke()
-                myCanvasContenxt.moveTo(begin, begin + i * this.gridSize)
-                myCanvasContenxt.lineTo(end, begin + i * this.gridSize)
-                myCanvasContenxt.stroke()
-                myCanvasContenxt.fillText(String.fromCharCode(i+65), begin + i * this.gridSize - 1, 10)
-                myCanvasContenxt.fillText(String.fromCharCode(i+65), 5, begin + i * this.gridSize + 2)
+        startGame: function(player, mode){
+            if(this.start){
+                this.resetGame()
+            } 
+            this.start = true
+            this.player = player
+            this.mode = mode
+            this.timestamp = 1
+        },
+        changePlayer(){
+            if(this.player == conf.PLAYER.BLACK){
+                this.player = conf.PLAYER.WHITE
+            } else {
+                this.player = conf.PLAYER.BLACK
             }
         },
-        startGame: function(){
-
-        },
-        chessboardClick: function(){
-
-        },
+        
     }
 }
 </script>
