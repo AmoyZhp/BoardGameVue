@@ -15,7 +15,7 @@
                             v-bind:player="player" 
                             v-bind:start="start"
                             v-bind:timestamp="timestamp"
-                            v-on:set-stone="setStone">
+                            v-on:acting="acting">
         </SixInRowBodyBoard>
     </div>
 </div>
@@ -27,6 +27,8 @@ import conf from "@/constant/SixInRowConsants.js"
 import SixInRowBodyBoard from "@/components/SixInRowBodyBoard.vue"
 import SixInRowBodyLeftBar from "@/components/SixInRowBodyLeftBar.vue"
 import Action from "@/model/Action"
+import axios from 'axios'
+
 
 export default {
     name: "SixInRowBody",
@@ -41,6 +43,7 @@ export default {
             stoneCnt: 0,
             timestamp:1,
             start: false,
+            terminal: false,
             player: conf.PLAYER.BLACK,
             mode: conf.MODE.HUMAN_TO_HUMAN,
             action : new Action(),
@@ -57,59 +60,110 @@ export default {
         this.initPage()
     },
     methods:{
-        setStone: function(x, y, player){
-            if(this.chessboard[x][y] == conf.PLAYER.EMPTY){
-                this.chessboard[x][y] = player
-                this.stoneCnt = (this.stoneCnt + 1) % 2
-                // 第一步时黑棋只走一个子
-                if(this.timestamp == 1){
-                    this.historyActions.push(new Action(this.player, x, y, -1, -1))
-                    this.stoneCnt = 0
-                    this.player = conf.PLAYER.WHITE
-                    this.timestamp++
-                    
-                } else {
-                    // == 0 说明当前玩家已经走了两个子，该换边了
-                    if(this.stoneCnt == 0){
-                        this.historyActions.push(new Action(this.player, this.move.x1, this.move.y1,
-                                                x, y))
-                        this.changePlayer()
-                        this.timestamp++
-                        console.log(this.historyActions)
-                    } else {
-                        this.move.x1 = x
-                        this.move.y1 = y
-                    }
+        acting: function(x, y, player){
+            this.setStone(x, y, player)
+            // == 0 说明当前玩家已经走了两个子，该执行动作并且换边
+            if(this.stoneCnt == 0){
+                this.step()
+                if(this.mode == conf.MODE.HUMAN_TO_AI){
+                    this.requestNextActon()
                 }
             }
         },
+        step(){
+            // 第一步时黑棋只走一个子
+            if(this.timestamp == 0){
+                this.historyActions.push(this.action)
+                this.stoneCnt = 0
+                this.player = conf.PLAYER.WHITE
+                this.timestamp++
+            } else {
+                this.historyActions.push(this.action)
+                this.changePlayer()
+                this.timestamp++
+            }
+        },
+        setStone: function(x, y, player){
+            if(this.isLegalPos(x,y)){
+                this.chessboard[x][y] = player
+                this.stoneCnt = (this.stoneCnt + 1) % 2
+                if(this.stoneCnt == 0){
+                    this.action.x2 = x
+                    this.action.y2 = y
+                } else {
+                    this.action = new Action(player, x, y, -1, -1)
+                }
+                return true
+            } else {
+                console.log('非法位置: ' + x + " " + y)
+                return false
+            }
+
+        },
+        async requestStartGame(){
+            try {
+                const response = await axios.get('http://127.0.0.1:8181/sixinrow/startgame',
+                                    { params: {
+                                            requiredPlayer: this.player,
+                                        } 
+                                    })
+                if(response.data.code == 2000){
+                    console.log('成功了！')
+                    return true
+                } else {
+                    console.log('失败了！')
+                    return false
+                }
+            } catch (error) {
+                console.error(error)
+                return false
+            }
+        },
+        requestEndGame(){
+            var that = this
+            axios.post('ttp://127.0.0.1:8181/sixinrow/endgame',{
+                requiredPlayer: this.player,
+                actionDTO: this.action,
+                gameStateDTO: {
+                    chessboard: this.chessboard,
+                    timestamp: this.timestamp,
+                    terminal:true,
+                }
+            }).then(function(response){
+                that.start = false
+            }).catch(function(error){
+                console.log(error)
+            })
+        },
         requestNextActon: function(){
             var that = this
-            actionDto =  axios.post('http://127.0.0.1:8080//sixinrow/getnextmove', {
-                    requiredPlayer: this.requiredPlayer,
-                    actionDTO: {
-                        "player": this.currentPlayer,
-                        "x1": this.action.x1,
-                        "y1": this.action.y1,
-                        "x2": this.action.x2,
-                        "y2": this.action.y2,
-                    },
+            axios.post('http://127.0.0.1:8181//sixinrow/getnextmove', {
+                    requiredPlayer: this.player,
+                    actionDTO: this.action,
                     gameStateDTO: {
                         chessboard: this.chessboard,
                         timestamp: this.timestamp,
                         terminal: this.terminal,
                     }
-
                   })
                   .then(function (response) {
-                    actionDTO = response.data.actionDTO
-                    console.log(response);
-                    that.setStone(actionDTO.x1, actionDTO.y1, that.requiredPlayer)
-                    that.setStone(actionDTO.x2, actionDTO.y2, that.requiredPlayer)
+                    let data = response.data
+                    that.terminal = data.gameStateDTO.terminal
+                    let actionDTO = data.actionDTO
+                    let action = new Action(actionDTO.player, actionDTO.x1, actionDTO.y1,
+                                    actionDTO.x2, actionDTO.y2)
+                    that.setStone(action.x1, action.y1, action.player)
+                    that.$refs.board.drawStone(action.x1, action.y1, action.player)
+                    if(data.gameStateDTO.timestamp != 1){
+                        that.setStone(action.x2, action.y2, action.player)
+                        that.$refs.board.drawStone(action.x2, action.y2, action.player)
+                    }
+                    that.step()
+                    console.log(data)
                   })
                   .catch(function (error) {
                     console.log(error);
-                  });
+                  });            
         },
         initPage: function(){
             for (let i = 0; i < conf.BOARD_SIZE; i++) {
@@ -132,13 +186,20 @@ export default {
             this.$refs.board.resetGame();
         },
         startGame: function(player, mode){
-            if(this.start){
-                this.resetGame()
-            } 
+            this.resetGame()
             this.start = true
             this.player = player
             this.mode = mode
-            this.timestamp = 1
+            this.timestamp = 0
+            if(mode == conf.MODE.HUMAN_TO_AI){
+                if(this.requestStartGame()){
+                    if(this.player == conf.PLAYER.WHITE){
+                        this.requestNextActon()
+                    }
+                } else {
+                    console.log("游戏启动失败")
+                }
+            }
         },
         changePlayer(){
             if(this.player == conf.PLAYER.BLACK){
@@ -147,6 +208,16 @@ export default {
                 this.player = conf.PLAYER.BLACK
             }
         },
+        isLegalPos(x, y){
+            if(x < 0 || x >= conf.BOARD_SIZE || y < 0 || y >= conf.BOARD_SIZE){
+                return false
+            }
+            if(this.chessboard[x][y] != conf.PLAYER.EMPTY){
+                console.log('非法位置: 在哪里 ' + x + " " + y)
+                return false
+            }
+            return true
+        }
         
     }
 }

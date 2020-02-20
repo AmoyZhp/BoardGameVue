@@ -56,10 +56,10 @@ export default {
             let oy = e.offsetY
             let x = Math.floor(ox / gridSize)
             let y = Math.floor(oy / gridSize)
-            if(this.chessboard[x][y] == conf.PLAYER.EMPTY){
+            if(this.isLegalPos(x,y)){
               this.drawStone(x, y, this.player)
             }
-            this.$emit('set-stone',x, y, this.player)
+            this.$emit('acting',x, y, this.player)
         }
       },
       drawChessboard: function(){
@@ -102,6 +102,15 @@ export default {
         resetGame(){
           this.myCanvasContenxt.clearRect(0, 0, conf.BOARD_PIXEL_SIZE, conf.BOARD_PIXEL_SIZE)
           this.drawChessboard()
+        },
+        isLegalPos(x, y){
+          if(x < 0 || x >= conf.BOARD_SIZE || y < 0 || y >= conf.BOARD_SIZE){
+              return false
+          }
+          if(this.chessboard[x][y] != conf.PLAYER.EMPTY){
+              return false
+          }
+          return true
         }
   },
 }
