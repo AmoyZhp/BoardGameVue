@@ -44,9 +44,11 @@ export default {
             timestamp:1,
             start: false,
             terminal: false,
+            disabled: false, // 用来操控是否要停止棋盘接受点击事件
             player: conf.PLAYER.BLACK,
             mode: conf.MODE.HUMAN_TO_HUMAN,
             action : new Action(),
+            actionCache: new Action(),
             move: {
                 x1:-1,
                 y1:-1,
@@ -56,43 +58,50 @@ export default {
             config: conf
         }
     },
+    computed: {
+        requiredPlayer: function () {
+            if(this.player == conf.PLAYER.BLACK){
+                return conf.PLAYER.WHITE
+            } else {
+                return conf.PLAYER.BLACK
+            }
+        }
+    },
     mounted: function(){
         this.initPage()
     },
     methods:{
-        acting: function(x, y, player){
-            this.setStone(x, y, player)
-            // == 0 说明当前玩家已经走了两个子，该执行动作并且换边
-            if(this.stoneCnt == 0){
-                this.step()
-                if(this.mode == conf.MODE.HUMAN_TO_AI){
-                    this.requestNextActon()
-                }
+        acting: function(cachePos){
+            this.actionCache.x1 = cachePos.x1
+            this.actionCache.y1 = cachePos.y1
+            this.actionCache.x2 = cachePos.x2
+            this.actionCache.y2 = cachePos.y2
+            this.actionCache.player = this.player
+            this.step(this.actionCache)
+            // 如果是人机对战模式，则请求下一个行动
+            if(this.mode == conf.MODE.HUMAN_TO_AI){
+                this.requestNextActon(this.requiredPlayer)
+            } else if(this.mode == conf.MODE.HUMAN_TO_HUMAN){
+                // 如果是人人对战 那就交换当前的行动权
+                this.changePlayer()
             }
         },
-        step(){
+        step(action){
             // 第一步时黑棋只走一个子
             if(this.timestamp == 0){
-                this.historyActions.push(this.action)
-                this.stoneCnt = 0
-                this.player = conf.PLAYER.WHITE
+                this.setStone(action.x1, action.y1, action.player)
+                this.historyActions.push(action)
                 this.timestamp++
             } else {
-                this.historyActions.push(this.action)
-                this.changePlayer()
+                this.setStone(action.x1, action.y1, action.player)
+                this.setStone(action.x2, action.y2, action.player)
+                this.historyActions.push(action)
                 this.timestamp++
             }
         },
         setStone: function(x, y, player){
             if(this.isLegalPos(x,y)){
                 this.chessboard[x][y] = player
-                this.stoneCnt = (this.stoneCnt + 1) % 2
-                if(this.stoneCnt == 0){
-                    this.action.x2 = x
-                    this.action.y2 = y
-                } else {
-                    this.action = new Action(player, x, y, -1, -1)
-                }
                 return true
             } else {
                 console.log('非法位置: ' + x + " " + y)
@@ -100,13 +109,13 @@ export default {
             }
 
         },
-        async requestStartGame(){
+        async requestStartGame(requiredPlayer){
             try {
-                const response = await axios.get('http://127.0.0.1:8181/sixinrow/startgame',
-                                    { params: {
-                                            requiredPlayer: this.player,
-                                        } 
-                                    })
+                const response = await axios.get('http://127.0.0.1:8181/sixinrow/startgame',{ 
+                    params: {
+                        requiredPlayer: requiredPlayer,
+                    } 
+                })
                 if(response.data.code == 2000){
                     console.log('成功了！')
                     return true
@@ -135,35 +144,30 @@ export default {
                 console.log(error)
             })
         },
-        requestNextActon: function(){
-            var that = this
-            axios.post('http://127.0.0.1:8181//sixinrow/getnextmove', {
-                    requiredPlayer: this.player,
-                    actionDTO: this.action,
-                    gameStateDTO: {
-                        chessboard: this.chessboard,
-                        timestamp: this.timestamp,
-                        terminal: this.terminal,
-                    }
-                  })
-                  .then(function (response) {
-                    let data = response.data
-                    that.terminal = data.gameStateDTO.terminal
-                    let actionDTO = data.actionDTO
-                    let action = new Action(actionDTO.player, actionDTO.x1, actionDTO.y1,
-                                    actionDTO.x2, actionDTO.y2)
-                    that.setStone(action.x1, action.y1, action.player)
-                    that.$refs.board.drawStone(action.x1, action.y1, action.player)
-                    if(data.gameStateDTO.timestamp != 1){
-                        that.setStone(action.x2, action.y2, action.player)
-                        that.$refs.board.drawStone(action.x2, action.y2, action.player)
-                    }
-                    that.step()
-                    console.log(data)
-                  })
-                  .catch(function (error) {
-                    console.log(error);
-                  });            
+        async requestNextActon(requiredPlayer){
+            try{
+                const response = await axios.post('http://127.0.0.1:8181//sixinrow/getnextmove', {
+                        requiredPlayer: requiredPlayer,
+                        actionDTO: this.actionCache,
+                        gameStateDTO: {
+                            chessboard: this.chessboard,
+                            timestamp: this.timestamp,
+                            terminal: this.terminal,
+                        }
+                    })
+                console.log(response)
+                let actionDTO = response.data.actionDTO
+                let action = new Action(actionDTO.player, actionDTO.x1, actionDTO.y1,
+                                actionDTO.x2, actionDTO.y2)
+                console.log(action)             
+                this.step(action)
+                this.$refs.board.drawStone(action.x1, action.y1, action.player)
+                if(this.timestamp != 1){
+                    this.$refs.board.drawStone(action.x2, action.y2, action.player)
+                }
+            }catch(error){
+                console.log(error)
+            }        
         },
         initPage: function(){
             for (let i = 0; i < conf.BOARD_SIZE; i++) {
@@ -192,9 +196,9 @@ export default {
             this.mode = mode
             this.timestamp = 0
             if(mode == conf.MODE.HUMAN_TO_AI){
-                if(this.requestStartGame()){
+                if(this.requestStartGame(this.requiredPlayer)){
                     if(this.player == conf.PLAYER.WHITE){
-                        this.requestNextActon()
+                        this.requestNextActon(this.requiredPlayer)
                     }
                 } else {
                     console.log("游戏启动失败")
