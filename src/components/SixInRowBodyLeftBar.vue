@@ -53,7 +53,11 @@ export default {
     props: {
         start: {
             type: Boolean,
-            default: false
+            required: true
+        },
+        terminal:{
+            type: Boolean,
+            required: true
         }
     },
     data: function(){
@@ -93,7 +97,7 @@ export default {
         },
         startGame(){
             this.$emit('start-game', this.player, this.mode)
-        }
+        },
     }
 }
 </script>

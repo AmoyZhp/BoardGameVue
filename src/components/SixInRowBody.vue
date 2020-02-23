@@ -2,6 +2,7 @@
 <div class="row">
     <div class="col-lg-3">
         <SixInRowBodyLeftBar v-bind:start="start" 
+                            v-bind:terminal="terminal"
                             v-on:start-game="startGame" 
                             v-on:reset-game="resetGame"/>
     </div>
@@ -14,8 +15,12 @@
         <SixInRowBodyBoard ref="board" v-bind:chessboard="chessboard" 
                             v-bind:player="player" 
                             v-bind:start="start"
-                            v-bind:timestamp="timestamp"
-                            v-on:acting="acting">
+                            v-bind:historyActions="historyActions"
+                            v-bind:timestep="timestep"
+                            v-bind:terminal="terminal"
+                            v-on:start-game="startGame"
+                            v-on:acting="acting"
+                            v-on:action-back="actionBack">
         </SixInRowBodyBoard>
     </div>
 </div>
@@ -41,9 +46,7 @@ export default {
             historyActions : [],
             chessboard : [],
             stoneCnt: 0,
-            timestamp:1,
             start: false,
-            terminal: false,
             disabled: false, // 用来操控是否要停止棋盘接受点击事件
             player: conf.PLAYER.BLACK,
             mode: conf.MODE.HUMAN_TO_HUMAN,
@@ -65,6 +68,17 @@ export default {
             } else {
                 return conf.PLAYER.BLACK
             }
+        },
+        timestep: function(){
+            return this.historyActions.length
+        },
+        terminal: function(){
+            if(this.isTerminal()){
+                alert("游戏结束")
+                return true
+            } else {
+                return false
+            }
         }
     },
     mounted: function(){
@@ -72,6 +86,9 @@ export default {
     },
     methods:{
         acting: function(cachePos){
+            if(this.start == false || this.terminal == true){
+                return
+            }
             this.actionCache.x1 = cachePos.x1
             this.actionCache.y1 = cachePos.y1
             this.actionCache.x2 = cachePos.x2
@@ -87,16 +104,17 @@ export default {
             }
         },
         step(action){
+            if(this.start == false || this.terminal == true){
+                return
+            }
             // 第一步时黑棋只走一个子
-            if(this.timestamp == 0){
+            if(this.timestep == 0){
                 this.setStone(action.x1, action.y1, action.player)
-                this.historyActions.push(action)
-                this.timestamp++
+                this.historyActions.push(new Action( action.player, action.x1, action.y1, action.x2, action.y2))
             } else {
                 this.setStone(action.x1, action.y1, action.player)
                 this.setStone(action.x2, action.y2, action.player)
-                this.historyActions.push(action)
-                this.timestamp++
+                this.historyActions.push(new Action( action.player, action.x1, action.y1, action.x2, action.y2))
             }
         },
         setStone: function(x, y, player){
@@ -135,8 +153,8 @@ export default {
                 actionDTO: this.action,
                 gameStateDTO: {
                     chessboard: this.chessboard,
-                    timestamp: this.timestamp,
-                    terminal:true,
+                    timestep: this.timestep,
+                    terminal:this.terminal,
                 }
             }).then(function(response){
                 that.start = false
@@ -151,7 +169,7 @@ export default {
                         actionDTO: this.actionCache,
                         gameStateDTO: {
                             chessboard: this.chessboard,
-                            timestamp: this.timestamp,
+                            timestep: this.timestep,
                             terminal: this.terminal,
                         }
                     })
@@ -161,9 +179,9 @@ export default {
                                 actionDTO.x2, actionDTO.y2)
                 console.log(action)             
                 this.step(action)
-                this.$refs.board.drawStone(action.x1, action.y1, action.player)
-                if(this.timestamp != 1){
-                    this.$refs.board.drawStone(action.x2, action.y2, action.player)
+                this.$refs.board.drawStone(action.x1, action.y1, action.player, this.timestep)
+                if(this.timestep != 1){
+                    this.$refs.board.drawStone(action.x2, action.y2, action.player, this.timestep)
                 }
             }catch(error){
                 console.log(error)
@@ -184,7 +202,6 @@ export default {
             this.player = conf.PLAYER.BLACK
             this.mode = conf.MODE.HUMAN_TO_HUMAN
             this.stoneCnt = 0
-            this.timestamp = 1
             this.historyActions = []
             this.start = false
             this.$refs.board.resetGame();
@@ -193,8 +210,7 @@ export default {
             this.resetGame()
             this.start = true
             this.player = player
-            this.mode = mode
-            this.timestamp = 0
+            this.mode = mode        
             if(mode == conf.MODE.HUMAN_TO_AI){
                 if(this.requestStartGame(this.requiredPlayer)){
                     if(this.player == conf.PLAYER.WHITE){
@@ -203,6 +219,18 @@ export default {
                 } else {
                     console.log("游戏启动失败")
                 }
+            }
+        },
+        actionBack(){
+            //回退两步
+            //假设当前是我方回合。那么则抹去对面的一步，以及我方的上一步（也就是我方想从新下的一步）
+            if(this.historyActions.length - 2 >= 0){
+                let action = this.historyActions.pop()
+                this.chessboard[action.x1][action.y1] = conf.PLAYER.EMPTY
+                this.chessboard[action.x2][action.y2] = conf.PLAYER.EMPTY
+                action = this.historyActions.pop()
+                this.chessboard[action.x1][action.y1] = conf.PLAYER.EMPTY
+                this.chessboard[action.x2][action.y2] = conf.PLAYER.EMPTY
             }
         },
         changePlayer(){
@@ -221,6 +249,81 @@ export default {
                 return false
             }
             return true
+        },
+        isTerminal(){
+            if(this.historyActions.length == 0){
+                return false
+            }
+            let action = this.historyActions[this.historyActions.length-1]
+            console.log(action)
+            let player = action.player
+            if(this.hasSixInRow(action.x1, action.y1, player)){
+                return true
+            } else if(this.hasSixInRow(action.x2, action.y2, player)){
+                return true
+            } else {
+                return false
+            }
+        },
+        hasSixInRow(x, y, player){
+            if(x < 0 || x >= conf.BOARD_SIZE || y  < 0 || y >= conf.BOARD_SIZE){
+                    return false
+            }
+            let cnt = 0
+            // 横向
+            cnt = 0
+            for(let i = Math.max(0,x-5); i < Math.min(x+5, conf.BOARD_SIZE - 1); i++){
+                if(this.chessboard[i][y] == player){
+                    cnt++
+                    if(cnt == 6){
+                        return true
+                    }
+                } else {
+                    cnt = 0
+                }
+            }
+            // 纵向
+            cnt = 0
+            for(let i = Math.max(0,y-5); i < Math.min(y+5, conf.BOARD_SIZE - 1); i++){
+                if(this.chessboard[x][i] == player){
+                    cnt++
+                    if(cnt == 6){
+                        return true
+                    }
+                } else {
+                    cnt = 0
+                }
+            }
+            // 135 度
+            cnt = 0
+            for(let i = -5; i <= 5; i++){
+                if(x+i < 0 || x+i >= conf.BOARD_SIZE || y+i < 0 || y+i >= conf.BOARD_SIZE){
+                    continue
+                }
+                if(this.chessboard[x+i][y+i] == player){
+                    cnt++
+                    if(cnt == 6){
+                        return true
+                    }
+                } else {
+                    cnt = 0
+                }
+            }
+            // 45 度
+            cnt = 0
+            for(let i = -5; i <= 5; i++){
+                if(x+i < 0 || x+i >= conf.BOARD_SIZE || y+i < 0 || y+i >= conf.BOARD_SIZE){
+                    continue
+                }
+                if(this.chessboard[x+i][y-i] == player){
+                    cnt++
+                    if(cnt == 6){
+                        return true
+                    }
+                } else {
+                    cnt = 0
+                }
+            }
         }
         
     }
