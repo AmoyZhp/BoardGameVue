@@ -95,8 +95,11 @@ export default {
             this.actionCache.y2 = cachePos.y2
             this.actionCache.player = this.player
             this.step(this.actionCache)
+            if(this.terminal){
+                this.requestEndGame()
+            }
             // 如果是人机对战模式，则请求下一个行动
-            if(this.mode == conf.MODE.HUMAN_TO_AI){
+            if(this.mode == conf.MODE.HUMAN_TO_AI && this.terminal == false){
                 this.requestNextActon(this.requiredPlayer)
             } else if(this.mode == conf.MODE.HUMAN_TO_HUMAN){
                 // 如果是人人对战 那就交换当前的行动权
@@ -148,29 +151,36 @@ export default {
         },
         requestEndGame(){
             var that = this
-            axios.post('ttp://127.0.0.1:8181/sixinrow/endgame',{
+            console.log(this.terminal)
+            axios.post('http://127.0.0.1:8181/sixinrow/endgame',{
                 requiredPlayer: this.player,
                 actionDTO: this.action,
                 gameStateDTO: {
                     chessboard: this.chessboard,
                     timestep: this.timestep,
                     terminal:this.terminal,
+                    historyActions: this.historyActions
                 }
             }).then(function(response){
                 that.start = false
+                console.log(response)
             }).catch(function(error){
                 console.log(error)
             })
         },
         async requestNextActon(requiredPlayer){
+            if(this.start == false || this.terminal == true){
+                return
+            }
             try{
-                const response = await axios.post('http://127.0.0.1:8181//sixinrow/getnextmove', {
+                const response = await axios.post('http://127.0.0.1:8181/sixinrow/getnextmove', {
                         requiredPlayer: requiredPlayer,
                         actionDTO: this.actionCache,
                         gameStateDTO: {
                             chessboard: this.chessboard,
                             timestep: this.timestep,
                             terminal: this.terminal,
+                            historyActions: this.historyActions
                         }
                     })
                 console.log(response)
@@ -185,6 +195,8 @@ export default {
                 }
             }catch(error){
                 console.log(error)
+                alert("服务端无连接")
+                this.start = false
             }        
         },
         initPage: function(){
@@ -257,9 +269,8 @@ export default {
             let action = this.historyActions[this.historyActions.length-1]
             console.log(action)
             let player = action.player
-            if(this.hasSixInRow(action.x1, action.y1, player)){
-                return true
-            } else if(this.hasSixInRow(action.x2, action.y2, player)){
+            if(this.hasSixInRow(action.x1, action.y1, player)
+                || this.hasSixInRow(action.x2, action.y2, player)){
                 return true
             } else {
                 return false
@@ -324,6 +335,7 @@ export default {
                     cnt = 0
                 }
             }
+            return false
         }
         
     }

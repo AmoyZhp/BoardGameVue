@@ -1,5 +1,7 @@
 # boardgamevue
 
+This is a board game web page ui based on Vue.
+
 ## Project setup
 ```
 npm install
@@ -20,5 +22,3 @@ npm run build
 npm run lint
 ```
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
