@@ -13,6 +13,7 @@ const PLAYER_OPTIONS = {
 }
 
 import gomokuApi from "@/api/gomokuApi.js"
+import GomokuAction from "@/model/GomokuAction"
 
 export default {
     namespaced: true,
@@ -20,7 +21,6 @@ export default {
         start: false,
         terminal: false,
         timestep: 0,
-        actionCnt: 0,
         chessboard: [[]],
         historyActions: [],
         actingPlayer: null,
@@ -55,13 +55,21 @@ export default {
                    state.chessboard[i][j] = state.PLAYER_OPTIONS.EMPTY
                 }
             }
-            state.actionCnt = state.historyActions.length
             state.actingPlayer = state.PLAYER_OPTIONS.BLACK
             state.mode = state.MODE_OPTIONS.HUMAN_TO_AI
         },
 
         step(state, payload){
-
+            state.timestep += 1
+            let action = new GomokuAction(payload.x, payload.y,
+                state.actingPlayer, state.timestep)
+            state.historyActions.push(action)
+            state.chessboard[action.x][action.y] = action.player
+            if(state.actingPlayer == PLAYER_OPTIONS.BLACK){
+                state.actingPlayer = PLAYER_OPTIONS.WHITE
+            } else {
+                state.actingPlayer = PLAYER_OPTIONS.BLACK
+            }
         },
         actionBack(state){
             
@@ -71,13 +79,11 @@ export default {
         },
 
         setTerminal(state, payload){
-
+            state.terminal = payload.terminal
         },
         setMode(state, payload){
             state.mode = payload.mode
         }
-        
-        
        
     },
     actions: {

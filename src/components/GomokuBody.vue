@@ -56,7 +56,11 @@
             </div>
         </div>
         <div class="col-lg-6">
-            <GomokuBodyBoard />
+            <GomokuBodyBoard 
+                v-bind:chessboard="chessboard" 
+                v-bind:historyActions="historyActions" 
+                v-on:start-game="startGame"
+            />
         </div>
         <div class="col-lg-3"></div>
     </div>
@@ -73,6 +77,25 @@ export default {
     },
     mounted: function(){
         this.$store.commit('gomoku/reset')
+    },
+    methods:{
+        resetGame(){
+            this.$store.commit('gomoku/reset')
+        },
+        startGame(){
+            this.resetGame()
+            this.$store.commit({
+                type: 'gomoku/setTerminal',
+                terminal: false,
+            })
+            this.$store.commit({
+                type: 'gomoku/setStart',
+                start: true,
+            })
+        },
+        actionBack(){
+            this.$store.commit('gomoku/actionBack')
+        },
     },
     computed: {
         start: {
@@ -96,6 +119,16 @@ export default {
                     mode: value
                 })
             },
+        },
+        historyActions: {
+            get(){
+                return this.$store.state.gomoku.historyActions
+            }
+        },
+        chessboard: {
+            get(){
+                return this.$store.state.gomoku.chessboard
+            }
         },
     },
     data: function() {
@@ -127,16 +160,5 @@ export default {
             ],
         }
     },
-    methods:{
-        resetGame(){
-            
-        },
-        startGame(){
-
-        },
-        actionBack(){
-
-        },
-    }
 };
 </script>

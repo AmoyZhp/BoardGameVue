@@ -6,31 +6,75 @@
     </div>
 </template>
 <script>
+import GomokuAction from "@/model/GomokuAction"
+
 export default {
-    mounted: function(){
-        this.init()
+    mounted: function() {
+        this.init();
     },
-    data : function(){
-        return{
-            BOARD_PIXEL_SIZE : this.$store.state.gomoku.BOARD_PIXEL_SIZE,
-            WIDTH : this.$store.state.gomoku.WIDTH,
+    props: {
+        chessboard: {
+            type: Array,
+            required: true
+        },
+        historyActions: {
+            type: Array,
+            required: true
+        },
+    },
+    data: function() {
+        return {
+            myCanvas: {},
+            myCanvasContenxt: {},
+            BOARD_PIXEL_SIZE: this.$store.state.gomoku.BOARD_PIXEL_SIZE,
+            WIDTH: this.$store.state.gomoku.WIDTH,
             HEIGHT: this.$store.state.gomoku.HEIGHT,
+            BLACK: this.$store.state.gomoku.PLAYER_OPTIONS.BLACK,
+            WHITE: this.$store.state.gomoku.PLAYER_OPTIONS.WHITE,
+            EMPTY: this.$store.state.gomoku.PLAYER_OPTIONS.EMPTY,
             gridSize: 0,
+        };
+    },
+    watch: {
+        historyActions: function(newValue, oldValue) {
+            this.clearBoard();
+            for (let i = 0; i < newValue.length; i++) {
+                let action = newValue[i];
+                this.renderStone(action.x, action.y, action.player, action.timestep);
+            }
         }
     },
-    methods:{
-        init(){
+    methods: {
+        init() {
             this.myCanvas = this.$refs.canvas;
-            this.myCanvas.width = this.BOARD_PIXEL_SIZE
-            this.myCanvas.height = this.BOARD_PIXEL_SIZE
+            this.myCanvas.width = this.BOARD_PIXEL_SIZE;
+            this.myCanvas.height = this.BOARD_PIXEL_SIZE;
             this.myCanvasContenxt = this.myCanvas.getContext("2d");
             this.gridSize = this.BOARD_PIXEL_SIZE / this.WIDTH;
-            this.renderBoard()
+            this.renderBoard();
         },
-        boardClick(){
-
+        boardClick(e) {
+            if (this.$store.state.gomoku.terminal) {
+                return;
+            }
+            if (this.$store.state.gomoku.start == false) {
+                this.$emit("start-game");
+            }
+            const { gridSize } = this;
+            let ox = e.offsetX;
+            let oy = e.offsetY;
+            let x = Math.floor(ox / gridSize);
+            let y = Math.floor(oy / gridSize);
+            if (this.isLegalPos(x, y)) {
+                this.$store.commit({
+                    type:'gomoku/step',
+                    x:x,
+                    y:y,
+                    
+                })
+            }
         },
-        renderBoard(){
+        renderBoard() {
             const { myCanvasContenxt } = this;
             myCanvasContenxt.strokeStyle = "#bfbfbf";
             let begin = this.gridSize / 2;
@@ -42,33 +86,62 @@ export default {
                 myCanvasContenxt.moveTo(begin, begin + i * this.gridSize);
                 myCanvasContenxt.lineTo(end, begin + i * this.gridSize);
                 myCanvasContenxt.stroke();
-                myCanvasContenxt.fillText(
-                    i,
-                    begin + i * this.gridSize - 5,
-                    10
-                );
-                myCanvasContenxt.fillText(
-                    i,
-                    5,
-                    begin + i * this.gridSize + 2
-                );
+                myCanvasContenxt.fillText(i, begin + i * this.gridSize - 5, 10);
+                myCanvasContenxt.fillText(i, 5, begin + i * this.gridSize + 2);
             }
         },
-        renderStone(x, y, player, number){
-
+        renderStone(x, y, player, number) {
+            const { gridSize } = this;
+            const { myCanvasContenxt } = this;
+            let half = gridSize / 2;
+            myCanvasContenxt.beginPath();
+            myCanvasContenxt.arc(
+                half + x * gridSize,
+                half + y * gridSize,
+                13,
+                0,
+                2 * Math.PI
+            );
+            myCanvasContenxt.closePath();
+            if (player == this.BLACK) {
+                myCanvasContenxt.fillStyle = "#000000";
+            } else {
+                myCanvasContenxt.fillStyle = "#CCCCCC";
+            }
+            myCanvasContenxt.fill();
+            if (player == this.BLACK) {
+                myCanvasContenxt.fillStyle = "#CCCCCC";
+            } else {
+                myCanvasContenxt.fillStyle = "#000000";
+            }
+            myCanvasContenxt.font = "bold";
+            myCanvasContenxt.fillText(
+                number,
+                half + x * gridSize - 3,
+                half + y * gridSize + 3
+            );
         },
-        clearBoard(){
-             this.myCanvasContenxt.clearRect(
+        clearBoard() {
+            this.myCanvasContenxt.clearRect(
                 0,
                 0,
                 this.BOARD_PIXEL_SIZE,
                 this.BOARD_PIXEL_SIZE
             );
-            this.renderBoard()
+            this.renderBoard();
         },
-
+        isLegalPos(x, y) {
+            if (x < 0 || x >= this.HEIGHT ||
+                    y < 0 ||y >= this.WIDTH){
+                return false;
+            }
+            if (this.chessboard[x][y] != this.EMPTY) {
+                return false;
+            }
+            return true;
+        }
     }
-}
+};
 </script>
 
 <style scoped>
