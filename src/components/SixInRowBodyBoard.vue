@@ -7,7 +7,10 @@
         </div>
         <div class="row">
             <div class="col-lg-6">
-                <button type="button" class="btn btn-primary my-btn" @click="actionBack">回退一步</button>
+                <button type="button" class="btn btn-primary my-btn" @click="actionBack(1)">回退一步</button>
+            </div>
+            <div class="col-lg-6">
+                <button type="button" class="btn btn-primary my-btn" @click="actionBack(2)">回退一轮</button>
             </div>
         </div>
     </div>
@@ -118,10 +121,7 @@ export default {
                 }
             }
         },
-        actionBack() {
-            if(this.terminal){
-                return
-            }
+        actionBack(step) {
             // 如果当前已经落了一子，则回退一步
             if (this.cachePos.player != conf.PLAYER.EMPTY) {
                 this.resetGame();
@@ -140,7 +140,7 @@ export default {
             } else {
                 //如果当前还未落子，说明想从新下自己的上一步
                 //也就回退两步。即对方的一步，以及自己的上一步。
-                this.$emit("action-back");
+                this.$emit("action-back",step);
                 this.resetGame();
                 for (let i = 0; i < this.historyActions.length; i++) {
                     let action = this.historyActions[i];

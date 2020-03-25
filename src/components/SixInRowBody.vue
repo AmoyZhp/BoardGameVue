@@ -1,30 +1,41 @@
 <template>
-<div class="row">
-    <div class="col-lg-3">
-        <SixInRowBodyLeftBar v-bind:start="start" 
-                            v-bind:terminal="terminal"
-                            v-on:start-game="startGame" 
-                            v-on:reset-game="resetGame"/>
-    </div>
-    <div class="col-lg-6">
-        <div class="row">
-            <div class="col-lg-12">
-                <h5> 持方颜色 : <span class="badge badge-secondary">{{player == config.PLAYER.BLACK ? '黑色' : '白色'}}</span></h5>
-            </div>
+    <div class="row">
+        <div class="col-lg-3">
+            <SixInRowBodyLeftBar
+                v-bind:start="start"
+                v-bind:terminal="terminal"
+                v-on:start-game="startGame"
+                v-on:reset-game="resetGame"
+            />
         </div>
-        <SixInRowBodyBoard ref="board" v-bind:chessboard="chessboard" 
-                            v-bind:player="player" 
-                            v-bind:start="start"
-                            v-bind:historyActions="historyActions"
-                            v-bind:timestep="timestep"
-                            v-bind:terminal="terminal"
-                            v-on:start-game="startGame"
-                            v-on:acting="acting"
-                            v-on:action-back="actionBack">
-        </SixInRowBodyBoard>
+        <div class="col-lg-6">
+            <div class="row">
+                <div class="col-lg-6">
+                    <h5>
+                        持方颜色 :
+                        <span
+                            class="badge badge-secondary"
+                        >{{currentPlayer == config.PLAYER.BLACK ? '黑色' : '白色'}}</span>
+                    </h5>
+                </div>
+                <div class="col-lg-6">
+                    <button type="button" class="btn btn-primary" @click="requestHistory">加载对局</button>
+                </div>
+            </div>
+            <SixInRowBodyBoard
+                ref="board"
+                v-bind:chessboard="chessboard"
+                v-bind:player="currentPlayer"
+                v-bind:start="start"
+                v-bind:historyActions="historyActions"
+                v-bind:timestep="timestep"
+                v-bind:terminal="terminal"
+                v-on:start-game="startGame"
+                v-on:acting="acting"
+                v-on:action-back="actionBack"
+            ></SixInRowBodyBoard>
+        </div>
     </div>
-</div>
-
 </template>
 
 <script>
@@ -47,8 +58,9 @@ export default {
             chessboard : [],
             stoneCnt: 0,
             start: false,
+            //表示执方，主要用在人机对战的模式
+            player: 0,
             disabled: false, // 用来操控是否要停止棋盘接受点击事件
-            player: conf.PLAYER.BLACK,
             mode: conf.MODE.HUMAN_TO_HUMAN,
             action : new Action(),
             actionCache: new Action(),
@@ -62,15 +74,21 @@ export default {
         }
     },
     computed: {
-        requiredPlayer: function () {
-            if(this.player == conf.PLAYER.BLACK){
+        timestep: function(){
+            return this.historyActions.length
+        },
+        //表示当前轮到了哪一方下棋
+        currentPlayer: function(){
+            console.log("in computed, len is " +  this.historyActions.length)
+            if(this.historyActions.length == 0){
+                return conf.PLAYER.BLACK
+            }
+            let lastAction = this.historyActions[this.historyActions.length-1]
+            if(lastAction.player === conf.PLAYER.BLACK){
                 return conf.PLAYER.WHITE
             } else {
                 return conf.PLAYER.BLACK
             }
-        },
-        timestep: function(){
-            return this.historyActions.length
         },
         terminal: function(){
             if(this.isTerminal()){
@@ -93,17 +111,15 @@ export default {
             this.actionCache.y1 = cachePos.y1
             this.actionCache.x2 = cachePos.x2
             this.actionCache.y2 = cachePos.y2
-            this.actionCache.player = this.player
+            this.actionCache.player = this.currentPlayer
             this.step(this.actionCache)
             if(this.terminal){
                 this.requestEndGame()
             }
             // 如果是人机对战模式，则请求下一个行动
             if(this.mode == conf.MODE.HUMAN_TO_AI && this.terminal == false){
-                this.requestNextActon(this.requiredPlayer)
-            } else if(this.mode == conf.MODE.HUMAN_TO_HUMAN){
-                // 如果是人人对战 那就交换当前的行动权
-                this.changePlayer()
+                console.log(this.currentPlayer)
+                this.requestNextActon(this.currentPlayer)
             }
         },
         step(action){
@@ -113,7 +129,7 @@ export default {
             // 第一步时黑棋只走一个子
             if(this.timestep == 0){
                 this.setStone(action.x1, action.y1, action.player)
-                this.historyActions.push(new Action( action.player, action.x1, action.y1, action.x2, action.y2))
+                this.historyActions.push(new Action( action.player, action.x1, action.y1, -1, -1))
             } else {
                 this.setStone(action.x1, action.y1, action.player)
                 this.setStone(action.x2, action.y2, action.player)
@@ -129,6 +145,26 @@ export default {
                 return false
             }
 
+        },
+        async requestHistory(){
+            try {
+                this.resetGame()
+                this.start = true
+                this.mode = conf.MODE.HUMAN_TO_AI
+                const response = await axios.get('http://127.0.0.1:8181/sixinrow/gethistorygame' 
+                )
+                let gameStateDTO = response.data.gameStateDTO
+                let historyActions = gameStateDTO.historyActions;
+                console.log(response)
+                for(let i = 0; i < historyActions.length; i++){
+                    let action = historyActions[i]
+                    this.$refs.board.drawStone(action.x1,action.y1,action.player,i+1)
+                    this.$refs.board.drawStone(action.x2,action.y2,action.player,i+1)
+                    this.step(historyActions[i]);
+                }
+            } catch (error) {
+                console.error(error)
+            }
         },
         async requestStartGame(requiredPlayer){
             try {
@@ -153,7 +189,7 @@ export default {
             var that = this
             console.log(this.terminal)
             axios.post('http://127.0.0.1:8181/sixinrow/endgame',{
-                requiredPlayer: this.player,
+                requiredPlayer: this.currentPlayer,
                 actionDTO: this.action,
                 gameStateDTO: {
                     chessboard: this.chessboard,
@@ -211,7 +247,6 @@ export default {
                    this.chessboard[i][j] = conf.PLAYER.EMPTY
                 }
             }
-            this.player = conf.PLAYER.BLACK
             this.mode = conf.MODE.HUMAN_TO_HUMAN
             this.stoneCnt = 0
             this.historyActions = []
@@ -221,35 +256,33 @@ export default {
         startGame: function(player, mode){
             this.resetGame()
             this.start = true
-            this.player = player
             this.mode = mode        
+            this.player = player
             if(mode == conf.MODE.HUMAN_TO_AI){
-                if(this.requestStartGame(this.requiredPlayer)){
-                    if(this.player == conf.PLAYER.WHITE){
-                        this.requestNextActon(this.requiredPlayer)
+                let requiredPlayer = 0
+                if(player == conf.PLAYER.WHITE){
+                    requiredPlayer = conf.PLAYER.BLACK
+                } else {
+                    requiredPlayer = conf.PLAYER.WHITE
+                }
+                if(this.requestStartGame(requiredPlayer)){
+                    if(player == conf.PLAYER.WHITE){
+                        this.requestNextActon(conf.PLAYER.BLACK)
                     }
                 } else {
                     console.log("游戏启动失败")
                 }
             }
         },
-        actionBack(){
+        actionBack(step){
             //回退两步
             //假设当前是我方回合。那么则抹去对面的一步，以及我方的上一步（也就是我方想从新下的一步）
-            if(this.historyActions.length - 2 >= 0){
-                let action = this.historyActions.pop()
-                this.chessboard[action.x1][action.y1] = conf.PLAYER.EMPTY
-                this.chessboard[action.x2][action.y2] = conf.PLAYER.EMPTY
-                action = this.historyActions.pop()
-                this.chessboard[action.x1][action.y1] = conf.PLAYER.EMPTY
-                this.chessboard[action.x2][action.y2] = conf.PLAYER.EMPTY
-            }
-        },
-        changePlayer(){
-            if(this.player == conf.PLAYER.BLACK){
-                this.player = conf.PLAYER.WHITE
-            } else {
-                this.player = conf.PLAYER.BLACK
+            if(this.historyActions.length - step >= 0){
+                while(step-- > 0){
+                    let action = this.historyActions.pop()
+                    this.chessboard[action.x1][action.y1] = conf.PLAYER.EMPTY
+                    this.chessboard[action.x2][action.y2] = conf.PLAYER.EMPTY
+                }
             }
         },
         isLegalPos(x, y){
@@ -345,7 +378,7 @@ export default {
 <style scoped>
 .chessboard {
     display: block;
-    box-shadow: -2px -2px 2px #efefef, 5px 5px 5px #B98989;
+    box-shadow: -2px -2px 2px #efefef, 5px 5px 5px #b98989;
     margin-top: 10px;
     width: 570;
     height: 570;

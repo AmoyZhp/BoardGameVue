@@ -1,15 +1,15 @@
 <template>
   <div id="app">
-    <SixInRow />
+    <Home />
   </div>
 </template>
 
 <script>
-import SixInRow from "./views/SixInRow"
+import Home from "@/views/Home"
 
 export default {
   components:{
-    SixInRow,
+    Home,
   }
 }
 </script>
