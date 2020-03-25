@@ -1,8 +1,8 @@
 export default class GomokuAction {
-    constructor(x, y, player, timestep) {
+    constructor(row, col, player, timestep) {
         this.player = player
-        this.x = x
-        this.y = y
+        this.row = row
+        this.col = col
         this.timestep = timestep
     }
 }

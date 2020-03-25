@@ -40,7 +40,7 @@ export default {
             this.clearBoard();
             for (let i = 0; i < newValue.length; i++) {
                 let action = newValue[i];
-                this.renderStone(action.x, action.y, action.player, action.timestep);
+                this.renderStone(action.row, action.col, action.player, action.timestep);
             }
         }
     },
@@ -63,16 +63,9 @@ export default {
             const { gridSize } = this;
             let ox = e.offsetX;
             let oy = e.offsetY;
-            let x = Math.floor(ox / gridSize);
-            let y = Math.floor(oy / gridSize);
-            if (this.isLegalPos(x, y)) {
-                this.$store.commit({
-                    type:'gomoku/step',
-                    x:x,
-                    y:y,
-                    
-                })
-            }
+            let row = Math.floor(oy / gridSize);
+            let col = Math.floor(ox / gridSize);
+            this.$emit('step',row, col)
         },
         renderBoard() {
             const { myCanvasContenxt } = this;
@@ -90,14 +83,14 @@ export default {
                 myCanvasContenxt.fillText(i, 5, begin + i * this.gridSize + 2);
             }
         },
-        renderStone(x, y, player, number) {
+        renderStone(row, col, player, number) {
             const { gridSize } = this;
             const { myCanvasContenxt } = this;
             let half = gridSize / 2;
             myCanvasContenxt.beginPath();
             myCanvasContenxt.arc(
-                half + x * gridSize,
-                half + y * gridSize,
+                half + col * gridSize,
+                half + row * gridSize,
                 13,
                 0,
                 2 * Math.PI
@@ -117,8 +110,8 @@ export default {
             myCanvasContenxt.font = "bold";
             myCanvasContenxt.fillText(
                 number,
-                half + x * gridSize - 3,
-                half + y * gridSize + 3
+                half + col * gridSize - 3,
+                half + row * gridSize + 3
             );
         },
         clearBoard() {
@@ -130,16 +123,6 @@ export default {
             );
             this.renderBoard();
         },
-        isLegalPos(x, y) {
-            if (x < 0 || x >= this.HEIGHT ||
-                    y < 0 ||y >= this.WIDTH){
-                return false;
-            }
-            if (this.chessboard[x][y] != this.EMPTY) {
-                return false;
-            }
-            return true;
-        }
     }
 };
 </script>

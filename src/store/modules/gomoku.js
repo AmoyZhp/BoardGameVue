@@ -14,6 +14,7 @@ const PLAYER_OPTIONS = {
 
 import gomokuApi from "@/api/gomokuApi.js"
 import GomokuAction from "@/model/GomokuAction"
+import GomokuGameState from "@/model/GomokuGameState"
 
 export default {
     namespaced: true,
@@ -24,6 +25,7 @@ export default {
         chessboard: [[]],
         historyActions: [],
         actingPlayer: null,
+        humanPlayer: null,
         mode: null,
         MODE_OPTIONS: null,
         PLAYER_OPTIONS: null,
@@ -61,10 +63,10 @@ export default {
 
         step(state, payload){
             state.timestep += 1
-            let action = new GomokuAction(payload.x, payload.y,
+            let action = new GomokuAction(payload.row, payload.col,
                 state.actingPlayer, state.timestep)
             state.historyActions.push(action)
-            state.chessboard[action.x][action.y] = action.player
+            state.chessboard[action.row][action.col] = action.player
             if(state.actingPlayer == PLAYER_OPTIONS.BLACK){
                 state.actingPlayer = PLAYER_OPTIONS.WHITE
             } else {
@@ -72,10 +74,20 @@ export default {
             }
         },
         actionBack(state){
-            
+            if(state.historyActions.length > 0){
+                let action = state.historyActions.pop()
+                state.chessboard[action.row][action.col] = state.PLAYER_OPTIONS.EMPTY
+                state.timestep -= 1
+                state.actingPlayer = action.player
+            }
         },
         setStart(state, payload){
             state.start = payload.start
+            if(state.start){
+                state.humanPlayer = payload.player
+                state.mode = payload.mode
+                state.actingPlayer = state.PLAYER_OPTIONS.BLACK
+            }
         },
 
         setTerminal(state, payload){
@@ -87,11 +99,18 @@ export default {
        
     },
     actions: {
-        requestNextAction({state, commit}){
-
+        async requestNextAction({state, commit}){
+            let gameState = new GomokuGameState(state.chessboard, state.historyActions, 
+                state.timestep, state.terminal)
+            let nextAction = await gomokuApi.requestNextAction(gameState)
+            commit({
+                type:'step',
+                row: nextAction.row,
+                col: nextAction.col
+            })
         },
         initGame({state, commit}){
-
+            
         },
         endGame({state, commit}){
 
