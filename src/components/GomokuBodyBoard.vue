@@ -40,7 +40,7 @@ export default {
             this.clearBoard();
             for (let i = 0; i < newValue.length; i++) {
                 let action = newValue[i];
-                this.renderStone(action.row, action.col, action.player, action.timestep);
+                this.renderStone(action.row, action.col, action.player, i+1);
             }
         }
     },

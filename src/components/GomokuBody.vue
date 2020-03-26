@@ -50,6 +50,11 @@
                 <div class="col-lg-6">
                     <button type="button" class="btn btn-primary" @click="resetGame">Reset</button>
                 </div>
+                <div class="col-lg-4">
+                    <button type="button" class="btn btn-primary" @click="startGame">Start</button>
+                </div>
+            </div>
+            <div class="row my-2">
                 <div class="col-lg-6">
                     <button type="button" class="btn btn-primary my-btn" @click="actionBack">回退一步</button>
                 </div>
@@ -84,19 +89,19 @@ export default {
             if(newValue.length > 0){
                 let action = newValue[newValue.length-1]
                 let terminal = this.hasFiveInRow(action.row, action.col, action.player)
-                this.$store.commit({
-                    type: 'gomoku/setTerminal',
-                    terminal: terminal
-                })
+                
+                this.$store.commit('gomoku/setTerminal',terminal)
                 if(terminal){
+                    if(this.mode == this.state.MODE_OPTIONS.HUMAN_TO_AI &&
+                        action.player == this.state.humanPlayer){
+                            this.$store.dispatch('endGame')
+                    }
                     if(action.player == this.BLACK){
                         alert("Black Side Win!")
                     } else {
                         alert("White Side Win!")
                     }
-                    
                 }
-                
             }
         }
     },
@@ -117,14 +122,10 @@ export default {
             this.$store.commit('gomoku/reset')
         },
         startGame(){
-            this.resetGame()
-            this.$store.commit({
-                type: 'gomoku/setTerminal',
-                terminal: false,
-            })
-            this.$store.commit({
-                type: 'gomoku/setStart',
-                start: true,
+            this.$store.dispatch({
+                type: 'gomoku/startGame',
+                mode: this.mode,
+                player: this.player,
             })
         },
         actionBack(){
@@ -205,6 +206,11 @@ export default {
         }
     },
     computed: {
+        state : {
+            get(){
+                return this.$store.state.gomoku
+            }
+        },
         start: {
             get(){
                 return this.$store.state.gomoku.start

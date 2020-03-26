@@ -64,7 +64,7 @@ export default {
         step(state, payload){
             state.timestep += 1
             let action = new GomokuAction(payload.row, payload.col,
-                state.actingPlayer, state.timestep)
+                state.actingPlayer)
             state.historyActions.push(action)
             state.chessboard[action.row][action.col] = action.player
             if(state.actingPlayer == PLAYER_OPTIONS.BLACK){
@@ -81,39 +81,53 @@ export default {
                 state.actingPlayer = action.player
             }
         },
-        setStart(state, payload){
-            state.start = payload.start
-            if(state.start){
+        setTerminal(state, terminal){
+            state.terminal = terminal
+        },
+        startGame(state, payload){
+            state.start = true
+            state.terminal = false
+            state.mode = payload.mode
+            state.actingPlayer = state.PLAYER_OPTIONS.BLACK
+            if(state.mode == state.MODE_OPTIONS.HUMAN_TO_AI){
                 state.humanPlayer = payload.player
-                state.mode = payload.mode
-                state.actingPlayer = state.PLAYER_OPTIONS.BLACK
             }
         },
-
-        setTerminal(state, payload){
-            state.terminal = payload.terminal
-        },
-        setMode(state, payload){
-            state.mode = payload.mode
-        }
-       
     },
     actions: {
         async requestNextAction({state, commit}){
             let gameState = new GomokuGameState(state.chessboard, state.historyActions, 
                 state.timestep, state.terminal)
-            let nextAction = await gomokuApi.requestNextAction(gameState)
+            let nextAction = await gomokuApi.requestNextAction(gameState, state.actingPlayer)
+            console.log(nextAction)
             commit({
                 type:'step',
                 row: nextAction.row,
                 col: nextAction.col
             })
         },
-        initGame({state, commit}){
-            
+        async startGame({ dispatch ,state, commit}, payload){
+            commit('reset')
+            commit('startGame', payload)
+            if(state.mode == state.MODE_OPTIONS.HUMAN_TO_AI){
+                let player = state.PLAYER_OPTIONS.EMPTY
+                if(state.humanPlayer == state.PLAYER_OPTIONS.BLACK){
+                    player = state.PLAYER_OPTIONS.WHITE
+                } else {
+                    player = state.PLAYER_OPTIONS.BLACK
+                }
+                let response = await gomokuApi.startGame(player)
+                console.log(response)
+                if(player == state.PLAYER_OPTIONS.BLACK){
+                    dispatch('requestNextAction')
+                }
+            }
         },
-        endGame({state, commit}){
-
+        async endGame({state, commit}){
+            let gameState = new GomokuGameState(state.chessboard, state.historyActions, 
+                state.timestep, state.terminal)
+            let response = await gomokuApi.endGame(gameState)
+            console.log(response)
         }
     },
 }
