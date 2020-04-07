@@ -1,4 +1,4 @@
-import GomokuGameState from "@/model/GomokuGameState"
+import GomokuGameState from "@/model/gomoku/GomokuGameState"
 import gomokuApi from "@/api/gomokuApi"
 import { STEP, RESET, START_GAME, END_GAME} from "./mutation-types"
 

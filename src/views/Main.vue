@@ -12,7 +12,7 @@
                             <router-link class="nav-link" to="/gomoku">Gomoku</router-link>
                         </li>
                         <li class="nav-item">
-                            <router-link class="nav-link" to="/connectSix">Connect Six</router-link>
+                            <router-link class="nav-link" to="/">Connect Six</router-link>
                         </li>
                         <li class="nav-item dropdown">
                             <router-link

@@ -1,4 +1,4 @@
-import GomokuAction from "@/model/GomokuAction"
+import GomokuAction from "@/model/gomoku/GomokuAction"
 import axios from 'axios'
 
 export default{

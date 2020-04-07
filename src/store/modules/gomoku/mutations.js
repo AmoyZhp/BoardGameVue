@@ -8,7 +8,7 @@ import {
     MODE_OPTIONS, BOARD_PIXEL_SIZE
 } from "@/config/gomoku"
 
-import GomokuAction from "@/model/GomokuAction"
+import GomokuAction from "@/model/gomoku/GomokuAction"
 
 export default {
     [INIT_STATE](state) {
