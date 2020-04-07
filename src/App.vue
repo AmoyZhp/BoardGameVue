@@ -1,15 +1,15 @@
 <template>
   <div id="app">
-    <Home />
+    <Main />
   </div>
 </template>
 
 <script>
-import Home from "@/views/Home"
+import Main from "@/views/Main"
 
 export default {
   components:{
-    Home,
+    Main,
   }
 }
 </script>

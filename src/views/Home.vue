@@ -1,16 +1,16 @@
 <template>
-    <div class="container">
-        <!-- nav -->
-        <GomokuBody />
-    </div>  
+    <div class="row">
+        <div class="col">
+            <p>
+                test
+            </p>
+        </div>
+    </div>
 </template>
 
 <script>
-import GomokuBody from '@/components/GomokuBody.vue'
 
 export default {
-    components:{
-        GomokuBody,
-    }
-}
+
+};
 </script>

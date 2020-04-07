@@ -1,0 +1,6 @@
+export const INIT_STATE = 'INIT_STATE'
+export const RESET = 'RESET'
+export const STEP = 'STEP'
+export const ACTION_BACK = 'ACTION_BACK'
+export const START_GAME = 'START_GAME'
+export const END_GAME = 'END_GAME'

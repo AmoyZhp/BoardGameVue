@@ -1,4 +1,3 @@
-import gomokuApi from "@/api/gomokuApi.js"
 import GomokuAction from "@/model/GomokuAction"
 import axios from 'axios'
 
@@ -45,9 +44,10 @@ export default{
                 },
                 
             })
-            console.log(response)
+            return response
         } catch(error){
             console.log(error)
+            return null
         }
     },
     async endGame(){

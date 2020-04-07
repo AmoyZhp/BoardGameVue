@@ -73,6 +73,7 @@
 </template>
 <script>
 import GomokuBodyBoard from "@/components/GomokuBodyBoard.vue";
+import {mapMutations, mapState, mapActions} from "vuex"
 
 export default {
     components: {
@@ -203,7 +204,8 @@ export default {
                 return false;
             }
             return true;
-        }
+        },
+        ...mapMutations(['INIT_STATE','ACTION_BACK'])
     },
     computed: {
         state : {
