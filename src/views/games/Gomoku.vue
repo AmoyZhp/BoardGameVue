@@ -95,7 +95,7 @@ export default {
                     if (cnt == 5) {
                         return true;
                     }
-                } else if (this.chessboard[i][col] != EMPTY) {
+                } else {
                     cnt = 0;
                 }
             }
@@ -111,7 +111,7 @@ export default {
                     if (cnt == 5) {
                         return true;
                     }
-                } else if (this.chessboard[row][i] != EMPTY) {
+                } else {
                     cnt = 0;
                 }
             }
@@ -131,7 +131,7 @@ export default {
                     if (cnt == 5) {
                         return true;
                     }
-                } else if (this.chessboard[row + i][col + i] != EMPTY) {
+                } else {
                     cnt = 0;
                 }
             }
@@ -148,7 +148,7 @@ export default {
                     if (cnt == 5) {
                         return true;
                     }
-                } else if (this.chessboard[x][y] != EMPTY) {
+                } else {
                     cnt = 0;
                 }
             }
