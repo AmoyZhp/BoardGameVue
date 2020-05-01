@@ -71,11 +71,15 @@ export default {
         }
         state.terminal = false
     },
-    [START_GAME](state, { player, mode, AItype, depth, times }) {
+    [START_GAME](state, { player, debugMode, debugInfo }) {
         state.start = true
         state.terminal = false
-        state.mode = mode
         state.actingPlayer = state.PLAYER_OPTIONS.BLACK
+        if(debugMode){
+            state.mode = debugInfo.mode
+        } else {
+            state.mode = state.MODE_OPTIONS.HUMAN_TO_AI
+        }
         if (state.mode == state.MODE_OPTIONS.HUMAN_TO_AI) {
             state.humanPlayer = player
         }

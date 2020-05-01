@@ -30,7 +30,7 @@
         </div>
         <div class="col-lg-3">
             <DevelopBar
-                v-if="DEBUG"
+                v-if="ADMIN"
                 v-bind:start="start"
                 v-bind:terminal="terminal"
                 v-bind:modeOptions="modeOptions"
@@ -54,10 +54,14 @@ export default {
         startGameWrap() {
             this.startGame({
                 player: this.chosenPlayer,
-                mode: this.debugInfo.mode,
-                AItype: this.debugInfo.AItype,
-                depth: this.debugInfo.depth,
-                times: this.debugInfo.times
+                debugMode: this.ADMIN,
+                debugInfo : {
+                    mode: this.debugInfo.mode,
+                    AItype: this.debugInfo.AItype,
+                    abDepth: this.debugInfo.abDepth,
+                    tssDepth: this.debugInfo.tssDepth,
+                    timeLimit: this.debugInfo.timeLimit
+                },
             });
             this.gameStatus = "当前玩家 : 黑方";
         },
@@ -70,13 +74,19 @@ export default {
                     this.mode == this.modeOptions.HUMAN_TO_AI.value ||
                     this.mode == this.modeOptions.AI_TO_AI.value
                 ) {
-                    this.stepFromAI();
+                    this.stepFromAI({
+                        debugMode: this.ADMIN,
+                        debugInfo : {
+                            AItype: this.debugInfo.AItype,
+                            abDepth: this.debugInfo.abDepth,
+                            tssDepth: this.debugInfo.tssDepth,
+                            timeLimit: this.debugInfo.timeLimit
+                        },
+                    });
                 }
             }
         },
         hasFiveInRow(row, col, player) {
-            console.log("row and col and player is", row, col, player)
-            console.log("chessboard is", this.chessboard)
             let EMPTY = this.playerOptions.EMPTY.value;
 
             if (row < 0 || row >= this.HEIGHT || col < 0 || col >= this.WIDTH) {
@@ -167,14 +177,14 @@ export default {
         setPlayer(chosenPlayer) {
             this.chosenPlayer = chosenPlayer;
         },
-        setDebugInfo(mode, AItype, depth, times) {
+        setDebugInfo({mode, AItype, abDepth, tssDepth, timeLimit}) {
             this.debugInfo = {
                 mode: mode,
                 AItype: AItype,
-                depth: depth,
-                times: times
+                abDepth: abDepth,
+                tssDepth: tssDepth,
+                timeLimit: timeLimit
             };
-            console.log(this.debugInfo);
         },
         ...mapMutations("gomoku/", [
             "INIT_STATE",
@@ -283,12 +293,12 @@ export default {
     },
     data: function() {
         return {
-            DEBUG: true,
+            ADMIN: true,
             debugInfo: {
                 mode: 0,
                 AItype: 0,
-                depth: 0,
-                times: 0
+                abDepth: 0,
+                timeLimit: 0
             },
             chosenPlayer: 0
         };

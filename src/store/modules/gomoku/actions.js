@@ -3,13 +3,14 @@ import gomokuApi from "@/api/gomokuApi"
 import { STEP, RESET, START_GAME, END_GAME} from "./mutation-types"
 
 export default {
-    async stepFromAI({ state, commit }) {
+    async stepFromAI({ state, commit }, payload) {
         // 如果是人机对战模式，则请求下一个动作
+        
         if (state.mode == state.MODE_OPTIONS.HUMAN_TO_AI ||
                 state.mode == state.MODE_OPTIONS.AI_TO_AI) {
             let gameState = new GomokuGameState(state.chessboard, state.historyActions,
                 state.timestep, state.terminal)
-            let nextAction = await gomokuApi.requestNextAction(gameState, state.actingPlayer)
+            let nextAction = await gomokuApi.requestNextAction(gameState, state.actingPlayer, payload.debugMode, payload.debugInfo)
             console.log("next action is ",nextAction)
             commit({
                 type: STEP,
@@ -40,7 +41,7 @@ export default {
             let response = await gomokuApi.startGame(player)
             console.log(response)
             if (player == state.PLAYER_OPTIONS.BLACK) {
-                dispatch('stepFromAI')
+                dispatch('stepFromAI', payload)
             }
         }
     },

@@ -2,7 +2,7 @@ import GomokuAction from "@/model/gomoku/GomokuAction"
 import axios from 'axios'
 
 export default{
-    async requestNextAction(state, requiredPlayer){
+    async requestNextAction(state, requiredPlayer, debugMode, debugInfo){
         let chessboard = state.chessboard
         let historyActions = state.historyActions
         let lastAction = new GomokuAction(-1, -1, -1)
@@ -13,8 +13,7 @@ export default{
         let terminal = state.terminal
         let action = new GomokuAction(-1, -1, -1)
         try{
-            let address = 'http://127.0.0.1:8181/'+ 'gomoku/getnextmove'
-            let response = await axios.post(address, {
+            let postData = {
                 requiredPlayer: requiredPlayer,
                 lastActionDTO: lastAction,
                 stateDTO: {
@@ -23,7 +22,12 @@ export default{
                 },
                 historyActionsDTO: historyActions,
                 timestep: timestep,
-            })
+                debugMode: debugMode,
+                debugInfo: debugInfo
+            }
+            console.log(postData)
+            let address = 'http://127.0.0.1:8181/'+ 'gomoku/getnextmove'
+            let response = await axios.post(address, postData)
             console.log(response)
             let actionDTO = response.data.lastActionDTO
             let action = new GomokuAction(actionDTO.row, actionDTO.col, 
@@ -39,7 +43,7 @@ export default{
         try{
             let address = 'http://127.0.0.1:8181/' + 'gomoku/startgame'
             let response = await axios.get(address, {
-                params :{
+                params : {
                     aiPlayer: aiPlayer,
                 },
                 
